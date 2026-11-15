@@ -1,12 +1,14 @@
-import { useState } from "react"
-import { ArrowLeft, ImagePlus, Lock, Pencil, Plus, RotateCcw, Trash2, X } from "lucide-react"
-import { ADMIN_PIN, STORE_NAME } from "@/config"
+import { useEffect, useState } from "react"
+import { ArrowLeft, Cloud, HardDrive, ImagePlus, Loader2, Lock, Pencil, Plus, RotateCcw, Trash2, X } from "lucide-react"
+import { STORE_NAME } from "@/config"
 import { cn } from "@/lib/utils"
-import { catalogStore, formatCOP, isSoldOut, SEED, uid, useCatalog, type ColorVariant, type Product } from "@/lib/store"
+import { formatCOP, isSoldOut, SEED, uid, useCatalog, type ColorVariant, type Product } from "@/lib/store"
+import { hasSession, login, logout, saveCatalog, syncCatalog, uploadImage, useMode } from "@/lib/api"
 import { toast, Toaster } from "@/components/shop/toast"
+import { Logo } from "@/components/site/logo"
 
 const SIZE_PRESETS = ["XS", "S", "M", "L", "XL", "XXL"]
-const SESSION_KEY = "viper.admin.ok"
+const msg = (e: unknown) => (e instanceof Error ? e.message : "Algo salió mal. Inténtalo de nuevo.")
 
 const blank = (): Product => ({
   id: uid(),
@@ -18,30 +20,14 @@ const blank = (): Product => ({
   colors: [{ id: uid(), name: "", hex: "#111111", images: [] }],
 })
 
-/** Reduce la foto antes de guardarla para que quepa en el navegador. */
-function fileToDataUrl(file: File, max = 900): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
-    img.onload = () => {
-      const k = Math.min(1, max / Math.max(img.width, img.height))
-      const c = document.createElement("canvas")
-      c.width = Math.round(img.width * k)
-      c.height = Math.round(img.height * k)
-      c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height)
-      URL.revokeObjectURL(url)
-      resolve(c.toDataURL("image/jpeg", 0.8))
-    }
-    img.onerror = reject
-    img.src = url
-  })
-}
-
 export default function Admin() {
-  const [ok, setOk] = useState(() => sessionStorage.getItem(SESSION_KEY) === "1")
+  const [ok, setOk] = useState(hasSession)
+  useEffect(() => {
+    syncCatalog()
+  }, [])
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {ok ? <Dashboard onLock={() => { sessionStorage.removeItem(SESSION_KEY); setOk(false) }} /> : <PinGate onOk={() => { sessionStorage.setItem(SESSION_KEY, "1"); setOk(true) }} />}
+      {ok ? <Dashboard onLock={() => { logout(); setOk(false) }} /> : <PinGate onOk={() => setOk(true)} />}
       <Toaster />
     </div>
   )
@@ -49,25 +35,35 @@ export default function Admin() {
 
 function PinGate({ onOk }: { onOk: () => void }) {
   const [pin, setPin] = useState("")
-  const [bad, setBad] = useState(false)
+  const [error, setError] = useState("")
+  const [busy, setBusy] = useState(false)
+  const bad = Boolean(error)
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault()
-        if (pin === ADMIN_PIN) onOk()
-        else setBad(true)
+        if (!pin) return setError("Escribe el PIN.")
+        setBusy(true)
+        try {
+          await login(pin)
+          onOk()
+        } catch (err) {
+          setError(msg(err))
+        } finally {
+          setBusy(false)
+        }
       }}
-      className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6"
+      className="mx-auto flex min-h-[100dvh] max-w-sm flex-col justify-center px-6 py-10"
     >
-      <span className="grid size-14 place-items-center rounded-full bg-muted">
-        <Lock className="size-6 text-primary-glow" />
-      </span>
-      <h1 className="mt-6 font-display text-4xl uppercase">Panel {STORE_NAME}</h1>
+      <Logo size="lg" />
+      <h1 className="mt-10 font-display text-4xl uppercase">Panel {STORE_NAME}</h1>
       <p className="mt-2 text-muted-foreground">Escribe el PIN para administrar el catálogo.</p>
       <label htmlFor="pin" className="mt-8 mb-1.5 text-sm font-semibold">PIN</label>
-      <input id="pin" type="password" inputMode="numeric" autoFocus value={pin} onChange={(e) => { setPin(e.target.value); setBad(false) }} className={cn("input text-center text-2xl tracking-[0.5em]", bad && "border-red-400")} />
-      {bad && <p role="alert" className="mt-2 text-sm text-red-400">PIN incorrecto. Inténtalo de nuevo.</p>}
-      <button className="btn-primary mt-5">Entrar</button>
+      <input id="pin" type="password" inputMode="numeric" autoFocus value={pin} onChange={(e) => { setPin(e.target.value); setError("") }} className={cn("input text-center text-2xl tracking-[0.5em]", bad && "border-red-400")} />
+      {bad && <p role="alert" className="mt-2 text-sm text-red-400">{error}</p>}
+      <button className="btn-primary mt-5" disabled={busy}>
+        {busy && <Loader2 className="size-4 animate-spin" />} {busy ? "Entrando…" : "Entrar"}
+      </button>
       <a href="./" className="mt-6 text-center text-sm text-muted-foreground underline underline-offset-4">Volver a la tienda</a>
     </form>
   )
@@ -78,14 +74,30 @@ function Dashboard({ onLock }: { onLock: () => void }) {
   const [editing, setEditing] = useState<Product | null>(null)
   const [confirmDel, setConfirmDel] = useState<string | null>(null)
   const [confirmReset, setConfirmReset] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const mode = useMode()
+  const everyone = mode === "remote" ? "Ya lo ven todos." : "Guardado en este navegador."
 
-  const save = (p: Product) => {
+  /** Guarda en el servidor; si falla, avisa y no cambia nada. */
+  const commit = async (next: Product[], done: string) => {
+    setBusy(true)
+    try {
+      await saveCatalog(next)
+      toast(`${done} ${everyone}`)
+      return null
+    } catch (e) {
+      toast(msg(e))
+      return msg(e)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const save = async (p: Product) => {
     const exists = catalog.some((x) => x.id === p.id)
-    const saved = catalogStore.set(exists ? catalog.map((x) => (x.id === p.id ? p : x)) : [p, ...catalog])
-    if (!saved) return false
-    toast(exists ? "Cambios guardados. Ya se ven en la tienda." : "Producto creado. Ya está en la tienda.")
-    setEditing(null)
-    return true
+    const err = await commit(exists ? catalog.map((x) => (x.id === p.id ? p : x)) : [p, ...catalog], exists ? "Cambios guardados." : "Prenda publicada.")
+    if (!err) setEditing(null)
+    return err
   }
 
   if (editing) return <Editor initial={editing} onCancel={() => setEditing(null)} onSave={save} />
@@ -107,7 +119,22 @@ function Dashboard({ onLock }: { onLock: () => void }) {
         <Plus className="size-5" /> Nueva prenda
       </button>
 
-      <p className="mt-8 text-sm text-muted-foreground">{catalog.length} productos · los cambios se ven de inmediato en la tienda de este navegador.</p>
+      <div className={cn("mt-8 flex items-start gap-3 rounded-2xl border p-4 text-sm", mode === "remote" ? "border-emerald-500/30 bg-emerald-500/10" : "border-amber-500/30 bg-amber-500/10")}>
+        {mode === "remote" ? <Cloud className="mt-0.5 size-5 shrink-0 text-emerald-300" /> : <HardDrive className="mt-0.5 size-5 shrink-0 text-amber-300" />}
+        <p>
+          {mode === "remote" ? (
+            <><strong>Conectado a la base de datos.</strong> Cuando tocas Guardar, el cambio se publica para todos los clientes.</>
+          ) : mode === "loading" ? (
+            "Conectando…"
+          ) : (
+            <><strong>Modo local.</strong> Sin base de datos: los cambios solo se ven en este navegador. En Vercel, conecta la base de datos (ver README).</>
+          )}
+        </p>
+      </div>
+
+      <p className="label mt-6 flex items-center gap-2 text-muted-foreground">
+        {catalog.length} prendas {busy && <><Loader2 className="size-3.5 animate-spin" /> guardando…</>}
+      </p>
 
       <ul className="mt-3 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
         {catalog.length === 0 && <li className="p-8 text-center text-muted-foreground">No hay productos. Crea el primero con “Nueva prenda”.</li>}
@@ -129,7 +156,7 @@ function Dashboard({ onLock }: { onLock: () => void }) {
             </div>
             {confirmDel === p.id ? (
               <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
-                <button type="button" onClick={() => { catalogStore.set(catalog.filter((x) => x.id !== p.id)); setConfirmDel(null); toast(`Eliminaste ${p.name}`) }} className="rounded-full bg-red-500 px-3 py-2 text-xs font-semibold text-white">Sí, eliminar</button>
+                <button type="button" disabled={busy} onClick={async () => { await commit(catalog.filter((x) => x.id !== p.id), `Eliminaste ${p.name}.`); setConfirmDel(null) }} className="rounded-full bg-red-500 px-3 py-2 text-xs font-semibold text-white">Sí, eliminar</button>
                 <button type="button" onClick={() => setConfirmDel(null)} className="rounded-full border border-border px-3 py-2 text-xs">Cancelar</button>
               </div>
             ) : (
@@ -146,7 +173,7 @@ function Dashboard({ onLock }: { onLock: () => void }) {
         {confirmReset ? (
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <span>Se borrarán tus productos y volverá el catálogo de ejemplo. ¿Seguro?</span>
-            <button type="button" onClick={() => { catalogStore.set(SEED); setConfirmReset(false); toast("Catálogo de ejemplo restaurado") }} className="rounded-full bg-red-500 px-3 py-2 text-xs font-semibold text-white">Sí, restaurar</button>
+            <button type="button" disabled={busy} onClick={async () => { await commit(SEED, "Catálogo de ejemplo restaurado."); setConfirmReset(false) }} className="rounded-full bg-red-500 px-3 py-2 text-xs font-semibold text-white">Sí, restaurar</button>
             <button type="button" onClick={() => setConfirmReset(false)} className="rounded-full border border-border px-3 py-2 text-xs">Cancelar</button>
           </div>
         ) : (
@@ -159,9 +186,11 @@ function Dashboard({ onLock }: { onLock: () => void }) {
   )
 }
 
-function Editor({ initial, onCancel, onSave }: { initial: Product; onCancel: () => void; onSave: (p: Product) => boolean }) {
+function Editor({ initial, onCancel, onSave }: { initial: Product; onCancel: () => void; onSave: (p: Product) => Promise<string | null> }) {
   const [p, setP] = useState<Product>(initial)
   const [error, setError] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState<string | null>(null)
   const [urlDraft, setUrlDraft] = useState<Record<string, string>>({})
   const isNew = !initial.name
 
@@ -176,16 +205,22 @@ function Editor({ initial, onCancel, onSave }: { initial: Product; onCancel: () 
 
   const addFiles = async (colorId: string, files: FileList | null) => {
     if (!files?.length) return
+    setUploading(colorId)
+    setError("")
     try {
-      const urls = await Promise.all(Array.from(files).map((f) => fileToDataUrl(f)))
-      const c = p.colors.find((x) => x.id === colorId)!
-      patchColor(colorId, { images: [...c.images, ...urls] })
-    } catch {
-      setError("No pudimos leer una de las fotos. Prueba con otra imagen.")
+      for (const f of Array.from(files)) {
+        const url = await uploadImage(f)
+        // Funcional: no pisa otros cambios hechos mientras se subía la foto.
+        setP((v) => ({ ...v, colors: v.colors.map((c) => (c.id === colorId ? { ...c, images: [...c.images, url] } : c)) }))
+      }
+    } catch (e) {
+      setError(msg(e))
+    } finally {
+      setUploading(null)
     }
   }
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     const clean: Product = {
       ...p,
@@ -200,7 +235,11 @@ function Editor({ initial, onCancel, onSave }: { initial: Product; onCancel: () 
     if (!clean.colors.length) return setError("Agrega al menos un color.")
     const bad = clean.colors.find((c) => !c.name || !c.images.length)
     if (bad) return setError(`Cada color necesita nombre y al menos una foto${bad.name ? ` (revisa “${bad.name}”)` : ""}.`)
-    if (!onSave(clean)) setError("No se pudo guardar: el navegador se quedó sin espacio. Usa menos fotos subidas o pega enlaces (URL) de las imágenes.")
+    if (uploading) return setError("Espera a que termine de subir la foto.")
+    setSaving(true)
+    const err = await onSave(clean)
+    setSaving(false)
+    if (err) setError(err)
   }
 
   return (
@@ -295,12 +334,12 @@ function Editor({ initial, onCancel, onSave }: { initial: Product; onCancel: () 
                     {i === 0 && <span className="absolute inset-x-0 bottom-0 rounded-b-lg bg-black/70 py-0.5 text-center text-[10px]">Principal</span>}
                   </div>
                 ))}
-                <label className="grid h-24 w-20 cursor-pointer place-items-center rounded-lg border-2 border-dashed border-border text-center text-[11px] text-muted-foreground transition hover:border-primary hover:text-foreground">
+                <label className={cn("grid h-24 w-20 cursor-pointer place-items-center rounded-lg border-2 border-dashed border-border text-center text-[11px] text-muted-foreground transition hover:border-primary hover:text-foreground", uploading === c.id && "pointer-events-none border-primary text-foreground")}>
                   <span>
-                    <ImagePlus className="mx-auto mb-1 size-5" />
-                    Subir foto
+                    {uploading === c.id ? <Loader2 className="mx-auto mb-1 size-5 animate-spin" /> : <ImagePlus className="mx-auto mb-1 size-5" />}
+                    {uploading === c.id ? "Subiendo…" : "Subir foto"}
                   </span>
-                  <input type="file" accept="image/*" multiple className="sr-only" onChange={(e) => { addFiles(c.id, e.target.files); e.target.value = "" }} />
+                  <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" disabled={!!uploading} onChange={(e) => { addFiles(c.id, e.target.files); e.target.value = "" }} />
                 </label>
               </div>
 
@@ -316,7 +355,7 @@ function Editor({ initial, onCancel, onSave }: { initial: Product; onCancel: () 
                   type="button"
                   onClick={() => {
                     const url = (urlDraft[c.id] ?? "").trim()
-                    if (!/^https?:\/\//.test(url)) return setError("El enlace de la foto debe empezar por http:// o https://")
+                    if (!/^https:\/\//.test(url)) return setError("El enlace de la foto debe empezar por https://")
                     patchColor(c.id, { images: [...c.images, url] })
                     setUrlDraft((d) => ({ ...d, [c.id]: "" }))
                   }}
@@ -340,7 +379,10 @@ function Editor({ initial, onCancel, onSave }: { initial: Product; onCancel: () 
           {error && <p role="alert" className="mb-2 rounded-xl bg-red-500/15 px-4 py-2.5 text-sm text-red-300">{error}</p>}
           <div className="flex gap-3">
             <button type="button" onClick={onCancel} className="btn-ghost px-5">Cancelar</button>
-            <button className="btn-primary flex-1">{isNew ? "Crear producto" : "Guardar cambios"}</button>
+            <button className="btn-primary flex-1" disabled={saving || !!uploading}>
+              {saving && <Loader2 className="size-4 animate-spin" />}
+              {saving ? "Guardando…" : isNew ? "Publicar prenda" : "Guardar cambios"}
+            </button>
           </div>
         </div>
       </div>

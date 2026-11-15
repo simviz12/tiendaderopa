@@ -9,3 +9,8 @@ dist/
 # fotos originales (copias en public/img)
 /img/
 skills-lock.json
+
+# entorno y vercel
+.env*
+!.env.example
+.vercel/

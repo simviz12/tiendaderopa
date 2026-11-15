@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && tsc --noEmit -p api && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@upstash/redis": "^1.41.0",
+    "@vercel/blob": "^2.9.0",
     "clsx": "2.1.1",
     "gsap": "3.12.5",
     "lucide-react": "0.460.0",

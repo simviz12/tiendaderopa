@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ArrowDown, ClipboardList, Instagram, MessageCircle, MousePointerClick, Search, Sparkles, X } from "lucide-react"
 import RunwayLookbook, { type RunwayLook } from "@/components/ui/runway-lookbook"
 import { Header } from "@/components/site/header"
@@ -8,6 +8,7 @@ import { ProductDrawer } from "@/components/shop/product-drawer"
 import { Toaster } from "@/components/shop/toast"
 import { useReveal } from "@/hooks/use-reveal"
 import { INSTAGRAM_URL, WHATSAPP_NUMBER } from "@/config"
+import { syncCatalog } from "@/lib/api"
 import { cartCount, formatCOP, isSoldOut, useCart, useCatalog, type Product } from "@/lib/store"
 
 const WA_CHAT = `https://wa.me/${WHATSAPP_NUMBER}`
@@ -93,6 +94,9 @@ export default function App() {
   const [showAll, setShowAll] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   useReveal()
+  useEffect(() => {
+    syncCatalog()
+  }, [])
 
   const product = catalog.find((p) => p.id === productId) ?? null
   const closeProduct = useCallback(() => setProductId(null), [])
@@ -152,7 +156,7 @@ export default function App() {
                   <path d="M2 14 C 60 4, 140 4, 298 10" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" className="draw" />
                 </svg>
               </span>
-              <span className="hero-in outline-text block text-[clamp(2.6rem,8.4vw,6rem)]" style={{ ["--d" as string]: "240ms" }}>
+              <span className="hero-in block text-[clamp(2.6rem,8.4vw,6rem)] text-muted-foreground" style={{ ["--d" as string]: "240ms" }}>
                 que no se vende.
               </span>
             </h1>
@@ -184,7 +188,7 @@ export default function App() {
           </div>
         </div>
 
-        <p aria-hidden className="select-none overflow-hidden whitespace-nowrap text-center font-display text-[19.5vw] uppercase leading-[0.8] text-transparent [-webkit-text-stroke:1px_var(--color-border)] lg:-mt-6">
+        <p aria-hidden className="select-none overflow-hidden whitespace-nowrap text-center font-display text-[19.5vw] uppercase leading-[0.8] text-white/[0.05] lg:-mt-6">
           Viper Store
         </p>
       </section>
@@ -246,7 +250,7 @@ export default function App() {
               enterKeyHint="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Busca por nombre o color: chaqueta, negro, denim…"
+              placeholder="Busca una prenda o un color…"
               className="input h-14 rounded-full pl-12 pr-12 shadow-glow-sm focus:shadow-glow [&::-webkit-search-cancel-button]:hidden"
             />
             {query && (

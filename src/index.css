@@ -11,8 +11,8 @@
   --color-primary-glow: #86a8ff;
   --color-paper: #e8eaee;
   --color-ink: #0a0b0d;
-  --font-sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Big Shoulders Display", "Archivo", sans-serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque", "Manrope", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
   --font-tag: "Permanent Marker", cursive;
   --spacing-13: 3.25rem;
@@ -21,9 +21,13 @@
   --shadow-glow-lg: 0 40px 100px -30px rgb(47 107 255 / 0.85);
 }
 
-.font-display {
-  font-weight: 900;
-  letter-spacing: 0.005em;
+.font-display,
+.look-name,
+.vs-look .rwl-title {
+  font-weight: 800;
+  font-stretch: 75%;
+  font-variation-settings: "opsz" 96;
+  letter-spacing: -0.015em;
 }
 .label {
   font-family: var(--font-mono);
@@ -257,7 +261,6 @@ body {
 }
 .vs-look .rwl-title {
   font-family: var(--font-display);
-  font-weight: 900;
   font-size: clamp(30px, 3.6vw, 56px);
   letter-spacing: 0.01em;
   line-height: 0.9;
@@ -279,7 +282,6 @@ body {
 }
 .look-name {
   font-family: var(--font-display);
-  font-weight: 900;
   text-transform: uppercase;
   font-size: clamp(34px, 4.6vw, 72px);
   line-height: 0.88;
@@ -411,4 +413,13 @@ button {
 }
 .vs-look .rwl-fig[data-front] > img {
   box-shadow: 0 40px 90px -24px rgb(47 107 255 / 0.7), 0 0 0 2px #fff;
+}
+@media (min-width: 640px) {
+  .vs-look[data-narrow] .rwl-foot {
+    right: max(16px, calc(100% - 560px));
+    left: 32px;
+  }
+  .vs-look[data-narrow] .rwl-copy {
+    left: 32px;
+  }
 }

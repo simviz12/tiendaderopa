@@ -123,7 +123,7 @@ const SLOTS = [
 ]
 
 /** On narrow stages the queue tucks left and the figures shrink to fit. */
-const NARROW_X = [1.3, 0.64, 0.36, 0.24, 0.16, 0.1, 0.06, 0.03]
+const NARROW_X = [1.45, 0.5, 0.3, 0.19, 0.12, 0.07, 0.04, 0.02]
 
 export type Pose = { x: number; y: number; scale: number; blur: number; alpha: number }
 
@@ -131,8 +131,8 @@ export type Pose = { x: number; y: number; scale: number; blur: number; alpha: n
  * Pose of a look `d` places behind the front, for a stage `w` x `h`. `base`
  * is the front figure's height in px, so `scale` is relative to it.
  */
-export function pose(d: number, w: number, h: number, n = Infinity): Pose & { base: number } {
-  const narrow = w < 0.9 * h
+export function pose(d: number, w: number, h: number, n = Infinity, forceNarrow = false): Pose & { base: number } {
+  const narrow = forceNarrow || w < 0.9 * h
   // Narrow: the figure is sized by the width and lifted, leaving the bottom third for the caption.
   const k = narrow ? Math.min(0.78, w / (0.95 * h)) : 1
   const lift = narrow ? 0.74 : 1
@@ -347,7 +347,7 @@ export default function RunwayLookbook({
   const cardRefs = React.useRef([] as (HTMLDivElement | null)[])
   const pos = React.useRef({ v: 0 })
   const st = React.useRef(null as ScrollTrigger | null)
-  const size = React.useRef({ w: 1, h: 1, railH: 1 })
+  const size = React.useRef({ w: 1, h: 1, railH: 1, narrow: false })
   const [index, setIndex] = React.useState(0)
   const [narrow, setNarrow] = React.useState(false)
   const [reduced, setReduced] = React.useState(false)
@@ -362,13 +362,13 @@ export default function RunwayLookbook({
   const counts = React.useMemo(() => looks.map((lk) => (lk.products ?? []).length), [looks])
 
   const render = React.useCallback(() => {
-    const { w, h, railH } = size.current
+    const { w, h, railH, narrow: nar } = size.current
     const p = pos.current.v
     for (let i = 0; i < count; i++) {
       const el = figRefs.current[i]
       if (!el) continue
       const d = offsetOf(i, p, count)
-      const q = pose(d, w, h, count)
+      const q = pose(d, w, h, count, nar)
       el.style.transform =
         "translate3d(" + q.x.toFixed(2) + "px," + q.y.toFixed(2) + "px,0) scale(" + q.scale.toFixed(4) + ")"
       el.style.filter = q.blur > 0.15 ? "blur(" + (q.blur / q.scale).toFixed(2) + "px)" : "none"
@@ -411,10 +411,11 @@ export default function RunwayLookbook({
     const track = trackRef.current
     if (!el || !track) return
     const ro = new ResizeObserver(() => {
-      const isNarrow = track.clientWidth < 720
+      // Celular y tablet: una prenda centrada, sin la columna de productos.
+      const isNarrow = track.clientWidth < 900
       setNarrow(isNarrow)
-      size.current = { w: el.clientWidth, h: el.clientHeight, railH: railRef.current?.clientHeight ?? el.clientHeight }
-      const base = pose(0, el.clientWidth, el.clientHeight).base
+      size.current = { w: el.clientWidth, h: el.clientHeight, railH: railRef.current?.clientHeight ?? el.clientHeight, narrow: isNarrow }
+      const base = pose(0, el.clientWidth, el.clientHeight, Infinity, isNarrow).base
       for (const f of figRefs.current) {
         if (!f) continue
         const img = f.firstElementChild as HTMLImageElement | null
