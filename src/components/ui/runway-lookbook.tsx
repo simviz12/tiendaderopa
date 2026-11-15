@@ -83,6 +83,10 @@ export type RunwayLookbookProps = {
   loginLabel?: string
   cartLabel?: string
   lookLabel?: string
+  /** Extra content under the look number (e.g. the piece's name and price). */
+  caption?: (index: number) => React.ReactNode
+  /** Called when a card in the product rail is pressed. */
+  onCardClick?: (look: number, product: number) => void
 }
 
 // #region queue
@@ -129,7 +133,9 @@ export type Pose = { x: number; y: number; scale: number; blur: number; alpha: n
  */
 export function pose(d: number, w: number, h: number, n = Infinity): Pose & { base: number } {
   const narrow = w < 0.9 * h
-  const k = narrow ? Math.min(1, w / (0.62 * h)) : 1
+  // Narrow: the figure is sized by the width and lifted, leaving the bottom third for the caption.
+  const k = narrow ? Math.min(0.78, w / (0.95 * h)) : 1
+  const lift = narrow ? 0.74 : 1
   const s = Math.max(-1, Math.min(SLOTS.length - 2, d)) + 1
   const i = Math.min(SLOTS.length - 2, Math.floor(s))
   const t = s - i
@@ -141,7 +147,7 @@ export function pose(d: number, w: number, h: number, n = Infinity): Pose & { ba
   return {
     base,
     x: xs * w,
-    y: mix(a.feet, b.feet) * h,
+    y: mix(a.feet, b.feet) * h * lift,
     scale: (mix(a.h, b.h) * h * k) / base,
     blur: mix(a.blur, b.blur) * h,
     // The look rejoining the back of the queue fades in rather than popping.
@@ -330,6 +336,8 @@ export default function RunwayLookbook({
   loginLabel = "Login",
   cartLabel = "Cart",
   lookLabel = "Look",
+  caption,
+  onCardClick,
 }: RunwayLookbookProps) {
   const count = looks.length
   const trackRef = React.useRef(null as HTMLDivElement | null)
@@ -367,6 +375,7 @@ export default function RunwayLookbook({
       el.style.opacity = q.alpha.toFixed(3)
       el.style.visibility = q.alpha < 0.01 || q.x > w * 1.6 ? "hidden" : "visible"
       el.style.zIndex = String(Math.round(400 - d * 40))
+      el.toggleAttribute("data-front", Math.abs(d) < 0.5)
     }
     // The rail glides from one look's pieces to the next.
     const cardH = Math.max(150, railH * 0.47)
@@ -585,6 +594,7 @@ export default function RunwayLookbook({
                   ))}
                 </span>
               </p>
+              {caption?.(index)}
               <button type="button" className="rwl-shop rwl-cap" onClick={() => onShopLook?.(index)}>
                 {ctaLabel}
               </button>
@@ -604,6 +614,8 @@ export default function RunwayLookbook({
                     className="rwl-card"
                     data-tint={c.j % 2 === 0 ? "" : undefined}
                     aria-hidden={c.look !== index}
+                    onClick={onCardClick ? () => onCardClick(c.look, c.j) : undefined}
+                    style={onCardClick ? { cursor: "pointer" } : undefined}
                   >
                     <Heart className="rwl-heart" />
                     <div className="rwl-pic">
