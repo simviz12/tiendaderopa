@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+# herramientas locales del agente
+.claude/
+.agents/
+.impeccable/
+# fotos originales (copias en public/img)
+/img/
+skills-lock.json
