@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from "react"
 import { ArrowDown, ClipboardList, Instagram, MessageCircle, MousePointerClick, Search, Sparkles, X } from "lucide-react"
 import RunwayLookbook, { type RunwayLook } from "@/components/ui/runway-lookbook"
 import { Header } from "@/components/site/header"
+import { Logo, LogoBadge } from "@/components/site/logo"
 import { CartDrawer } from "@/components/shop/cart-drawer"
 import { ProductDrawer } from "@/components/shop/product-drawer"
 import { Toaster } from "@/components/shop/toast"
@@ -52,7 +53,7 @@ function ProductCard({ p, onOpen }: { p: Product; onOpen: () => void }) {
   const cover = (p.colors.find((c) => !c.soldOut) ?? p.colors[0])?.images[0]
   return (
     <button type="button" onClick={onOpen} className="group flex flex-col text-left" aria-label={`Ver ${p.name}, ${formatCOP(p.price)}`}>
-      <div className="relative overflow-hidden rounded-xl bg-muted ring-1 ring-border transition group-hover:ring-primary/70">
+      <div className="relative overflow-hidden rounded-xl bg-muted shadow-glow-sm ring-1 ring-border transition duration-300 group-hover:-translate-y-1 group-hover:shadow-glow group-hover:ring-primary/70">
         <img
           src={cover}
           alt=""
@@ -173,12 +174,12 @@ export default function App() {
 
           <div className="relative lg:col-span-6 lg:py-10">
             <div className="hero-in relative mx-auto max-w-[560px] lg:ml-auto" style={{ ["--d" as string]: "200ms" }}>
-              <div className="relative overflow-hidden rounded-2xl ring-1 ring-white/10 sm:rotate-[1.5deg]">
+              <div className="relative overflow-hidden rounded-2xl shadow-glow-lg ring-1 ring-primary/30 sm:rotate-[1.5deg]">
                 <img src="/img/fachada.jpeg" alt="Vitrina de Viper Store con grafiti azul: Hptas no vendan ropa tan chimba" className="aspect-[4/5] w-full object-cover" fetchPriority="high" />
               </div>
               <span className="sticker absolute -left-3 top-8 -rotate-[8deg] bg-primary text-white sm:-left-8">Good vibes only ☺</span>
               <span className="sticker absolute -right-2 top-1/2 rotate-[6deg] bg-foreground text-background sm:-right-6">Local support local</span>
-              <img src="/img/logo.jpeg" alt="" className="absolute -bottom-6 left-6 size-24 -rotate-6 rounded-full object-cover shadow-2xl ring-4 ring-background sm:size-28" />
+              <LogoBadge className="absolute -bottom-6 left-6 size-24 -rotate-6 sm:size-28" />
             </div>
           </div>
         </div>
@@ -246,7 +247,7 @@ export default function App() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Busca por nombre o color: chaqueta, negro, denim…"
-              className="input h-14 rounded-full pl-12 pr-12 [&::-webkit-search-cancel-button]:hidden"
+              className="input h-14 rounded-full pl-12 pr-12 shadow-glow-sm focus:shadow-glow [&::-webkit-search-cancel-button]:hidden"
             />
             {query && (
               <button type="button" onClick={() => { setQuery(""); searchRef.current?.focus() }} aria-label="Borrar búsqueda" className="absolute right-2 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:text-foreground">
@@ -316,7 +317,7 @@ export default function App() {
               { icon: ClipboardList, k: "Llena tus datos", v: "Nombre, dirección de entrega y si pagas por Nequi o contraentrega." },
               { icon: MessageCircle, k: "Confirma por WhatsApp", v: "Se abre el chat con tu pedido ya escrito. Solo tocas Enviar." },
             ].map((s, i) => (
-              <li key={s.k} data-reveal style={{ ["--d" as string]: `${i * 80}ms` }} className="rounded-2xl bg-white p-6 ring-1 ring-black/5 sm:p-8">
+              <li key={s.k} data-reveal style={{ ["--d" as string]: `${i * 80}ms` }} className="rounded-2xl bg-white p-6 shadow-[0_24px_50px_-28px_rgb(47_107_255/0.55)] ring-1 ring-primary/10 sm:p-8">
                 <div className="flex items-center justify-between">
                   <span className="font-display text-6xl text-primary">0{i + 1}</span>
                   <s.icon className="size-7 text-ink/40" />
@@ -336,7 +337,7 @@ export default function App() {
       <section id="tienda" className="mx-auto max-w-[1400px] scroll-mt-20 px-4 py-16 sm:px-8 sm:py-24">
         <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
           <div data-reveal className="relative order-2 lg:order-1">
-            <img src="/img/fachada.jpeg" alt="Fachada de Viper Store de noche" loading="lazy" className="aspect-square w-full rounded-2xl object-cover object-bottom ring-1 ring-border" />
+            <img src="/img/fachada.jpeg" alt="Fachada de Viper Store de noche" loading="lazy" className="aspect-square w-full rounded-2xl object-cover object-bottom shadow-glow-lg ring-1 ring-primary/30" />
             <span className="sticker absolute -top-4 right-6 rotate-[5deg] bg-primary text-white">Ven a verla ☺</span>
           </div>
           <div className="order-1 lg:order-2">
@@ -362,12 +363,9 @@ export default function App() {
       {/* ───────── PIE ───────── */}
       <footer className="relative overflow-hidden border-t border-border bg-surface">
         <div className="mx-auto flex max-w-[1400px] flex-col gap-8 px-4 py-10 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <div className="flex items-center gap-4">
-            <img src="/img/logo.jpeg" alt="" className="size-14 rounded-full object-cover ring-1 ring-white/10" />
-            <div>
-              <p className="font-display text-2xl uppercase leading-none">Viper Store</p>
-              <p className="mt-1 text-sm text-muted-foreground">Good vibes only · Local support local</p>
-            </div>
+          <div>
+            <Logo size="lg" />
+            <p className="mt-3 text-sm text-muted-foreground">Good vibes only · Local support local</p>
           </div>
           <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground" aria-label="Pie">
             <a href="#lookbook" className="hover:text-foreground">Lookbook</a>
@@ -379,7 +377,7 @@ export default function App() {
             <MessageCircle className="size-5" />
           </a>
         </div>
-        <p aria-hidden className="select-none whitespace-nowrap text-center font-display text-[26vw] uppercase leading-[0.8] text-primary">
+        <p aria-hidden className="select-none whitespace-nowrap text-center font-display text-[26vw] uppercase leading-[0.8] text-primary [text-shadow:0_0_80px_rgb(47_107_255/0.6)]">
           Viper
         </p>
         <p className="label border-t border-border py-5 text-center text-muted-foreground">© 2026 Viper Store</p>

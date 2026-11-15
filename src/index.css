@@ -16,6 +16,9 @@
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
   --font-tag: "Permanent Marker", cursive;
   --spacing-13: 3.25rem;
+  --shadow-glow-sm: 0 14px 34px -22px rgb(47 107 255 / 0.55);
+  --shadow-glow: 0 22px 50px -20px rgb(47 107 255 / 0.75);
+  --shadow-glow-lg: 0 40px 100px -30px rgb(47 107 255 / 0.85);
 }
 
 .font-display {
@@ -84,6 +87,7 @@ body {
 .btn-primary {
   background: var(--color-primary);
   color: #fff;
+  box-shadow: 0 16px 36px -16px rgb(47 107 255 / 0.9);
 }
 .btn-primary:hover {
   background: var(--color-primary-glow);
@@ -396,4 +400,15 @@ button {
   margin-top: 12px;
   padding: 16px;
   font-size: 12px;
+}
+
+/* Sombras azules en paneles */
+[role="dialog"] {
+  box-shadow: 0 0 120px -20px rgb(47 107 255 / 0.45);
+}
+.sticker.bg-primary {
+  box-shadow: 0 14px 34px -10px rgb(47 107 255 / 0.8);
+}
+.vs-look .rwl-fig[data-front] > img {
+  box-shadow: 0 40px 90px -24px rgb(47 107 255 / 0.7), 0 0 0 2px #fff;
 }

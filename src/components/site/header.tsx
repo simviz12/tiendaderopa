@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Menu, Search, ShoppingBag, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Logo } from "./logo"
 
 const links = [
   { href: "#lookbook", label: "Lookbook" },
@@ -40,11 +41,8 @@ export function Header({ cart, onCart, onSearch }: { cart: number; onCart: () =>
         )}
       >
         <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between px-4 sm:h-20 sm:px-8">
-          <a href="#top" className="flex items-center gap-3" aria-label="Viper Store, inicio">
-            <img src="/img/logo.jpeg" alt="" className="size-10 rounded-full object-cover ring-1 ring-white/15 sm:size-11" />
-            <span className="font-display text-xl uppercase leading-none tracking-wide sm:text-2xl">
-              Viper<span className="text-primary">.</span>
-            </span>
+          <a href="#top" aria-label="Viper Store, inicio">
+            <Logo />
           </a>
 
           <nav className="hidden items-center gap-1 lg:flex" aria-label="Principal">
@@ -66,7 +64,7 @@ export function Header({ cart, onCart, onSearch }: { cart: number; onCart: () =>
             <button
               type="button"
               onClick={onCart}
-              className="relative flex h-11 items-center gap-2 rounded-full bg-foreground px-4 text-sm font-semibold text-background transition-transform active:scale-[0.96]"
+              className="relative flex h-11 items-center gap-2 rounded-full bg-foreground px-4 shadow-glow text-sm font-semibold text-background transition-transform active:scale-[0.96]"
               aria-label={`Abrir bolsa, ${cart} productos`}
             >
               <ShoppingBag className="size-4" />
@@ -105,9 +103,7 @@ export function Header({ cart, onCart, onSearch }: { cart: number; onCart: () =>
         aria-label="Menú"
       >
         <div className="flex h-16 items-center justify-between px-4">
-          <span className="font-display text-xl uppercase tracking-wide">
-            Viper<span className="text-primary">.</span>
-          </span>
+          <Logo />
           <button type="button" onClick={() => setOpen(false)} className="grid size-11 place-items-center rounded-full border border-border" aria-label="Cerrar menú">
             <X className="size-5" />
           </button>

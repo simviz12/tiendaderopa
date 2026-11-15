@@ -219,17 +219,37 @@ export const cartCount = (items: CartItem[]) => items.reduce((s, i) => s + i.qty
 
 /* ───────── WhatsApp ───────── */
 export function buildWhatsAppUrl(items: CartItem[], c: Customer) {
-  const address = [c.city, c.hood, c.address].filter(Boolean).join(", ") + (c.notes ? ` (${c.notes})` : "")
+  const now = new Date()
+  const two = (n: number) => String(n).padStart(2, "0")
+  const code = `VS-${two(now.getDate())}${two(now.getMonth() + 1)}-${two(now.getHours())}${two(now.getMinutes())}`
+  const units = cartCount(items)
+  const rule = "━━━━━━━━━━━━━━━"
   const lines = [
-    "*¡Hola! Quiero confirmar el siguiente pedido:* 🧥",
-    `*Cliente:* ${c.name}`,
-    `*Dirección:* ${address}`,
-    `*Método de pago:* ${c.payment}`,
+    "🛍️ *NUEVO PEDIDO · VIPER STORE*",
+    `Pedido *#${code}*`,
+    rule,
     "",
-    "*Detalle del pedido:*",
-    ...items.map((i) => `- ${i.qty}x ${i.name} | Color: ${i.color} | Talla: ${i.size} — ${formatCOP(i.price * i.qty)}`),
+    "👤 *DATOS DEL CLIENTE*",
+    `• *Nombre:* ${c.name.trim()}`,
+    `• *Ciudad:* ${c.city.trim()}`,
+    `• *Barrio:* ${c.hood.trim()}`,
+    `• *Dirección:* ${c.address.trim()}`,
+    ...(c.notes.trim() ? [`• *Indicaciones:* ${c.notes.trim()}`] : []),
     "",
-    `*Total a pagar:* ${formatCOP(cartTotal(items))}`,
+    `🧥 *PRODUCTOS* (${units} ${units === 1 ? "unidad" : "unidades"})`,
+    ...items.flatMap((i, n) => [
+      "",
+      `*${n + 1}. ${i.name}*`,
+      `   Color: ${i.color}  |  Talla: ${i.size}`,
+      `   ${i.qty} × ${formatCOP(i.price)} = *${formatCOP(i.price * i.qty)}*`,
+    ]),
+    "",
+    rule,
+    `💰 *TOTAL A PAGAR: ${formatCOP(cartTotal(items))}*`,
+    `💳 *Pago:* ${c.payment}`,
+    rule,
+    "",
+    "Quedo atento a la confirmación. ¡Gracias! 🙌",
   ]
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(lines.join("\n"))}`
 }
